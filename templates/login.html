@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — AI Fairness Auditor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050816;--card:rgba(15,23,42,0.8);
+  --cyan:#00e5ff;--purple:#8b5cf6;--green:#22c55e;
+  --red:#ef4444;--text:#e5f6ff;--muted:#7090b0;
+  --border:rgba(0,229,255,0.15);
+}
+body{
+  font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+.bg-canvas::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 50% at 30% 40%, rgba(139,92,246,0.15) 0%, transparent 60%),
+             radial-gradient(ellipse 50% 40% at 70% 70%, rgba(0,229,255,0.08) 0%, transparent 60%);
+}
+.grid-overlay{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+
+.auth-container{
+  position:relative;z-index:1;width:100%;max-width:440px;padding:2rem;
+  animation:fadeUp .6s ease both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.auth-card{
+  background:var(--card);backdrop-filter:blur(30px);
+  border:1px solid var(--border);border-radius:20px;
+  padding:2.5rem;box-shadow:0 40px 80px rgba(0,0,0,0.5),0 0 40px rgba(0,229,255,0.05);
+}
+.logo{
+  display:flex;align-items:center;gap:.6rem;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:2rem;text-decoration:none;
+}
+.logo-icon{
+  width:32px;height:32px;background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:.9rem;-webkit-text-fill-color:white;
+}
+h1{font-family:'Syne',sans-serif;font-weight:700;font-size:1.8rem;margin-bottom:.4rem}
+.subtitle{color:var(--muted);font-size:.9rem;margin-bottom:2rem}
+
+.flash{
+  padding:.8rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-size:.9rem;
+  background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--red);
+}
+
+.field{margin-bottom:1.25rem}
+label{display:block;font-size:.85rem;font-weight:500;margin-bottom:.5rem;color:var(--muted)}
+input{
+  width:100%;padding:.8rem 1rem;border-radius:10px;font-size:.95rem;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(0,229,255,0.15);
+  color:var(--text);font-family:'DM Sans',sans-serif;
+  transition:all .2s ease;outline:none;
+}
+input:focus{
+  border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,0.1);
+  background:rgba(0,229,255,0.04);
+}
+input::placeholder{color:rgba(112,144,176,0.5)}
+
+.btn-submit{
+  width:100%;padding:.9rem;border-radius:10px;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border:none;color:#fff;font-size:1rem;font-weight:600;
+  font-family:'DM Sans',sans-serif;cursor:pointer;
+  transition:all .2s ease;box-shadow:0 0 20px rgba(0,229,255,0.25);
+  margin-top:.5rem;
+}
+.btn-submit:hover{transform:translateY(-1px);box-shadow:0 0 30px rgba(0,229,255,0.4)}
+
+.auth-footer{
+  text-align:center;margin-top:1.5rem;font-size:.9rem;color:var(--muted);
+}
+.auth-footer a{color:var(--cyan);text-decoration:none}
+.auth-footer a:hover{text-decoration:underline}
+
+.back-link{
+  display:flex;align-items:center;gap:.4rem;
+  color:var(--muted);text-decoration:none;font-size:.85rem;
+  margin-bottom:2rem;transition:.2s;
+}
+.back-link:hover{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="bg-canvas"><div class="grid-overlay"></div></div>
+
+<div class="auth-container">
+  <a href="/" class="back-link">← Back to Home</a>
+  <div class="auth-card">
+    <a href="/" class="logo"><div class="logo-icon">⚖</div>AI Fairness Auditor</a>
+    <h1>Welcome back</h1>
+    <p class="subtitle">Sign in to access your dashboard</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, msg in messages %}
+        <div class="flash">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-submit">Sign In →</button>
+    </form>
+
+    <div class="auth-footer">
+      Don't have an account? <a href="/register">Create one free</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — AI Fairness Auditor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">⚖</div>
+    <span class="logo-text">Fairness<br><span>Auditor</span></span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Analysis</div>
+    <button class="nav-item active" data-tab="pretrain">
+      <span class="nav-icon">📊</span>
+      <span>Pre-Training</span>
+      <span class="nav-badge">Dataset</span>
+    </button>
+    <button class="nav-item" data-tab="posttrain">
+      <span class="nav-icon">🎯</span>
+      <span>Post-Training</span>
+      <span class="nav-badge">Model</span>
+    </button>
+    <div class="nav-section-label">Tools</div>
+    <button class="nav-item" data-tab="appeal">
+      <span class="nav-icon">⚖</span>
+      <span>Appeal Engine</span>
+    </button>
+    <button class="nav-item" data-tab="reports">
+      <span class="nav-icon">📋</span>
+      <span>Reports</span>
+      <span class="nav-badge reports-count" id="reportsCount">0</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-pill">
+      <div class="user-avatar">{{ user_name[0]|upper }}</div>
+      <div class="user-info">
+        <div class="user-name">{{ user_name }}</div>
+        <div class="user-role">{{ ai_provider or 'No AI' }} · {% if mongo_available %}DB✓{% else %}No DB{% endif %}</div>
+      </div>
+    </div>
+    <a href="/logout" class="logout-btn" title="Sign out">↩</a>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main-content">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburger">☰</button>
+      <div class="breadcrumb">
+        <span class="breadcrumb-root">Dashboard</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current" id="breadcrumbCurrent">Pre-Training Audit</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="ai-indicator" id="aiIndicator">
+        <span class="ai-dot"></span>
+        <span>{{ ai_provider or 'No Provider' }}</span>
+      </div>
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+    </div>
+  </header>
+
+  <!-- Tab Panels -->
+  <div class="content-area">
+
+    <!-- ═══════════════════════════════════════════════════════ PRE-TRAINING -->
+    <div class="tab-panel active" id="tab-pretrain">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Pre-Training Audit</h2>
+          <p class="panel-subtitle">Analyze raw dataset for bias before model training</p>
+        </div>
+      </div>
+
+      <!-- Upload Card -->
+      <div class="upload-zone" id="preUploadZone">
+        <div class="upload-icon">📁</div>
+        <h3>Upload Dataset</h3>
+        <p>Supports CSV, JSON, XLSX, XML, HTML (structured) · PDF, TXT (smart parsed)</p>
+        <label class="upload-btn">
+          <input type="file" id="preFile" accept=".csv,.json,.xlsx,.xls,.txt,.pdf,.xml,.html,.htm" hidden>
+          Choose File
+        </label>
+        <div class="file-hint" id="preFileName">No file selected</div>
+        <button class="analyze-btn" id="preAnalyzeBtn" disabled>
+          <span class="btn-icon">⚡</span> Run Pre-Training Audit
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading-state hidden" id="preLoading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Analyzing dataset<span class="dots">...</span></div>
+        <div class="loading-sub">Computing fairness metrics · Generating insights</div>
+      </div>
+
+      <!-- Results -->
+      <div class="results-area hidden" id="preResults">
+        <!-- Metrics Cards -->
+        <div class="results-section-header">
+          <span class="section-icon">📊</span> Audit Metrics
+        </div>
+        <div class="metrics-grid" id="preMetricsGrid"></div>
+
+        <!-- Graphs -->
+        <div class="results-section-header">
+          <span class="section-icon">📈</span> Distribution Analysis
+        </div>
+        <div class="charts-grid" id="preChartsGrid"></div>
+
+        <!-- AI Report -->
+        <div class="results-section-header">
+          <span class="section-icon">🤖</span> AI Audit Report
+          <span class="provider-tag" id="preProviderTag"></span>
+        </div>
+        <div class="report-container" id="preReportContainer"></div>
+
+        <!-- Bias Optimization -->
+        <div class="results-section-header">
+          <span class="section-icon">🎛</span> Bias Optimization Simulator
+        </div>
+        <div class="whatif-panel" id="preWhatIf">
+          <div class="whatif-controls">
+            <div class="control-group">
+              <label>Protected Attribute</label>
+              <select id="preWhatIfAttr" class="styled-select"></select>
+            </div>
+            <div class="control-group">
+              <label>Desired Balance: <span id="preBalanceVal">50</span>%</label>
+              <input type="range" id="preBalanceSlider" min="30" max="80" value="50" class="slider">
+            </div>
+            <button class="simulate-btn" id="preSimulateBtn">
+              <span>⚡</span> Simulate Rebalancing
+            </button>
+          </div>
+          <div class="whatif-results hidden" id="preWhatIfResults"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════ POST-TRAINING -->
+    <div class="tab-panel" id="tab-posttrain">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Post-Training Audit</h2>
+          <p class="panel-subtitle">Evaluate model predictions for bias and disparate impact</p>
+        </div>
+      </div>
+
+      <!-- Upload Mode Tabs -->
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="single">Single File</button>
+        <button class="mode-tab" data-mode="split">Data + Predictions</button>
+        <button class="mode-tab" data-mode="api">API Test</button>
+      </div>
+
+      <!-- Single File Mode -->
+      <div class="mode-panel active" id="mode-single">
+        <div class="upload-zone" id="postUploadZone">
+          <div class="upload-icon">🎯</div>
+          <h3>Upload Predictions Dataset</h3>
+          <p>File must include a prediction/decision column (CSV, JSON, XLSX)</p>
+          <label class="upload-btn">
+            <input type="file" id="postFile" accept=".csv,.json,.xlsx,.xls" hidden>
+            Choose File
+          </label>
+          <div class="file-hint" id="postFileName">No file selected</div>
+          <div class="col-selector hidden" id="postColSelector">
+            <label>Prediction Column:</label>
+            <select id="postPredCol" class="styled-select"></select>
+            <label>Label Column (optional):</label>
+            <select id="postLabelCol" class="styled-select"><option value="">— None —</option></select>
+          </div>
+          <button class="analyze-btn" id="postAnalyzeBtn" disabled>
+            <span class="btn-icon">⚡</span> Run Post-Training Audit
+          </button>
+        </div>
+      </div>
+
+      <!-- Split Mode -->
+      <div class="mode-panel" id="mode-split">
+        <div class="upload-zone">
+          <div class="upload-icon">📂</div>
+          <h3>Upload Data + Predictions Separately</h3>
+          <div class="split-uploads">
+            <div class="split-item">
+              <label class="split-label">Input Data File</label>
+              <label class="upload-btn">
+                <input type="file" id="postFileData" accept=".csv,.json,.xlsx" hidden>
+                Choose Data File
+              </label>
+              <div class="file-hint" id="postDataFileName">No file</div>
+            </div>
+            <div class="split-item">
+              <label class="split-label">Predictions File</label>
+              <label class="upload-btn">
+                <input type="file" id="postFilePred" accept=".csv,.json,.xlsx" hidden>
+                Choose Predictions File
+              </label>
+              <div class="file-hint" id="postPredFileName">No file</div>
+            </div>
+          </div>
+          <div class="col-selector" style="margin-top:1rem">
+            <label>Prediction Column Name:</label>
+            <input type="text" id="postSplitPredCol" class="text-input" placeholder="e.g. prediction">
+          </div>
+          <button class="analyze-btn" id="postSplitAnalyzeBtn">
+            <span class="btn-icon">⚡</span> Merge & Analyze
+          </button>
+        </div>
+      </div>
+
+      <!-- API Mode -->
+      <div class="mode-panel" id="mode-api">
+        <div class="upload-zone">
+          <div class="upload-icon">🌐</div>
+          <h3>Black-Box API Testing</h3>
+          <div class="api-fields">
+            <div class="control-group">
+              <label>Model API URL</label>
+              <input type="url" id="apiUrl" class="text-input" placeholder="https://your-model.api/predict">
+            </div>
+            <div class="control-group">
+              <label>Auth Token (optional)</label>
+              <input type="text" id="apiToken" class="text-input" placeholder="Bearer token...">
+            </div>
+            <div class="control-group">
+              <label>Sample JSON Input</label>
+              <textarea id="apiSampleJson" class="code-textarea" rows="4" placeholder='{"age": 30, "income": 50000}'></textarea>
+            </div>
+            <div class="control-group">
+              <label>Protected Attribute Key</label>
+              <input type="text" id="apiProtectedAttr" class="text-input" placeholder="e.g. gender">
+            </div>
+          </div>
+          <button class="analyze-btn" id="apiTestBtn">
+            <span class="btn-icon">🔬</span> Run API Stress Test
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading-state hidden" id="postLoading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Analyzing predictions<span class="dots">...</span></div>
+        <div class="loading-sub">Computing fairness metrics · Checking 80% rule</div>
+      </div>
+
+      <!-- Results -->
+      <div class="results-area hidden" id="postResults">
+        <div class="results-section-header"><span class="section-icon">📊</span> Audit Metrics</div>
+        <div class="metrics-grid" id="postMetricsGrid"></div>
+
+        <div class="results-section-header"><span class="section-icon">📈</span> Fairness Analysis</div>
+        <div class="charts-grid" id="postChartsGrid"></div>
+
+        <div class="results-section-header">
+          <span class="section-icon">🤖</span> AI Audit Report
+          <span class="provider-tag" id="postProviderTag"></span>
+        </div>
+        <div class="report-container" id="postReportContainer"></div>
+
+        <!-- Stress Testing -->
+        <div class="results-section-header"><span class="section-icon">🔬</span> Synthetic Stress Testing</div>
+        <div class="stress-panel">
+          <div style="margin-bottom:1rem">
+            <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.75rem">Test your model counterfactually — only the protected attribute changes. Python calculates all bias metrics.</p>
+            <button class="generate-sandbox-btn" id="generateSandboxBtn">
+              <span>✨</span> Auto-Generate Test with Groq
+            </button>
+            <div class="generating-indicator hidden" id="sandboxGenerating">
+              <div class="spinner" style="width:14px;height:14px;border-width:2px"></div>
+              Groq generating sandbox code...
+            </div>
+          </div>
+
+          <div class="stress-fields">
+            <div class="control-group">
+              <label>Python predict(row) Function</label>
+              <textarea id="stressSandboxCode" class="code-textarea" rows="9" placeholder="def predict(row):\n    # Return 1 = approved, 0 = rejected\n    if row.get('income', 0) > 50000:\n        return 1\n    return 0"></textarea>
+            </div>
+            <div class="control-group">
+              <label>Sample Row JSON</label>
+              <textarea id="stressSandboxJson" class="code-textarea" rows="4" placeholder='{"gender": "GroupA", "income": 55000}'></textarea>
+            </div>
+            <div class="control-group">
+              <label>Protected Attribute</label>
+              <input type="text" id="stressSandboxAttr" class="text-input" placeholder="gender" value="gender">
+            </div>
+          </div>
+          <button class="simulate-btn" id="stressSandboxRunBtn"><span>🔬</span> Run Counterfactual Test</button>
+
+          <div class="loading-state hidden" id="stressLoading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Running counterfactual test<span class="dots">...</span></div>
+          </div>
+          <div class="hidden" id="stressResults"></div>
+        </div>
+
+        <!-- Bias Optimization -->
+        <div class="results-section-header"><span class="section-icon">🎛</span> Bias Optimization Simulator</div>
+        <div class="whatif-panel" id="postWhatIf">
+          <div class="whatif-controls">
+            <div class="control-group">
+              <label>Protected Attribute</label>
+              <select id="postWhatIfAttr" class="styled-select"></select>
+            </div>
+            <div class="control-group">
+              <label>Decision Threshold: <span id="postThreshVal">0.50</span></label>
+              <input type="range" id="postThreshSlider" min="10" max="90" value="50" class="slider">
+            </div>
+            <div class="control-group">
+              <label>Fairness Weight: <span id="postFairVal">0.50</span></label>
+              <input type="range" id="postFairSlider" min="10" max="90" value="50" class="slider">
+            </div>
+            <button class="simulate-btn" id="postOptimizeBtn">
+              <span>⚡</span> Optimize Fairness
+            </button>
+          </div>
+          <div class="whatif-results hidden" id="postWhatIfResults"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════ APPEAL ENGINE -->
+    <div class="tab-panel" id="tab-appeal">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Appeal Engine</h2>
+          <p class="panel-subtitle">Context-aware AI analysis of rejection decisions</p>
+        </div>
+      </div>
+
+      <div class="appeal-layout">
+        <div class="appeal-form-card">
+          <h3 class="card-title">📄 Your Document</h3>
+          <div class="domain-selector">
+            <label>Domain</label>
+            <div class="domain-grid">
+              <button class="domain-btn active" data-domain="hiring">💼 Hiring</button>
+              <button class="domain-btn" data-domain="loan">🏦 Loan</button>
+              <button class="domain-btn" data-domain="insurance">🛡 Insurance</button>
+              <button class="domain-btn" data-domain="scholarship">🎓 Scholarship</button>
+              <button class="domain-btn" data-domain="custom">⚙ Custom</button>
+            </div>
+          </div>
+          <div class="input-or">
+            <label class="upload-btn" style="width:100%;justify-content:center">
+              <input type="file" id="appealDocFile" accept=".pdf,.txt,.doc" hidden>
+              📁 Upload Document (PDF/TXT)
+            </label>
+            <div class="or-divider">or</div>
+            <textarea id="appealDocText" class="code-textarea" rows="6" placeholder="Paste your document text here (resume, application form, etc.)..."></textarea>
+          </div>
+        </div>
+
+        <div class="appeal-form-card">
+          <h3 class="card-title">📋 Policy / Criteria</h3>
+          <div class="input-or">
+            <input type="url" id="appealPolicyUrl" class="text-input" placeholder="https://company.com/job-requirements or policy URL">
+            <div class="or-divider">or upload</div>
+            <label class="upload-btn" style="width:100%;justify-content:center">
+              <input type="file" id="appealPolicyFile" accept=".pdf,.txt" hidden>
+              📁 Upload Policy (PDF/TXT)
+            </label>
+            <div class="or-divider">or paste</div>
+            <textarea id="appealPolicyText" class="code-textarea" rows="6" placeholder="Paste the job description, policy, or eligibility criteria here..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin:1.5rem 0">
+        <button class="analyze-btn" id="appealRunBtn" style="width:auto;padding:.9rem 3rem">
+          <span class="btn-icon">⚖</span> Analyze & Generate Appeal Report
+        </button>
+      </div>
+
+      <div class="loading-state hidden" id="appealLoading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Analyzing documents<span class="dots">...</span></div>
+        <div class="loading-sub">Comparing criteria · Identifying gaps · Generating appeal</div>
+      </div>
+
+      <div class="results-area hidden" id="appealResults">
+        <div class="results-section-header"><span class="section-icon">⚖</span> Appeal Analysis</div>
+        <div id="appealOutput"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════ REPORTS -->
+    <div class="tab-panel" id="tab-reports">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Audit Reports</h2>
+          <p class="panel-subtitle">History of all previous audits stored in MongoDB</p>
+        </div>
+        <button class="refresh-btn" id="refreshReports">↻ Refresh</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="reports-filters">
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-filter="all">All Reports</button>
+          <button class="filter-tab" data-filter="pre-training">Pre-Training</button>
+          <button class="filter-tab" data-filter="post-training">Post-Training</button>
+          <button class="filter-tab" data-filter="appeal">Appeal</button>
+        </div>
+        <input type="text" id="reportSearch" class="search-input" placeholder="🔍 Search reports...">
+      </div>
+
+      <div class="loading-state hidden" id="reportsLoading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading reports<span class="dots">...</span></div>
+      </div>
+
+      <div id="reportsGrid" class="reports-grid"></div>
+
+      <!-- Report Detail View -->
+      <div class="report-detail-overlay hidden" id="reportDetailOverlay">
+        <div class="report-detail-modal">
+          <div class="report-detail-header">
+            <h3 id="reportDetailTitle">Report Detail</h3>
+            <button class="close-btn" id="closeReportDetail">✕</button>
+          </div>
+          <div class="report-detail-body" id="reportDetailBody"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+</div><!-- /main-content -->
+
+<!-- Toast Notification -->
+<div class="toast hidden" id="toast">
+  <span id="toastMsg"></span>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-backdrop hidden" id="deleteConfirmModal">
+  <div class="modal-box">
+    <div class="modal-icon">🗑</div>
+    <h3 class="modal-title">Delete Report</h3>
+    <p class="modal-body">Are you sure you want to delete <strong id="deleteReportName"></strong>? This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" id="deleteCancelBtn">Cancel</button>
+      <button class="modal-btn modal-btn-danger" id="deleteConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

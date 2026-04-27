@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Fairness Auditor — Detect & Mitigate AI Bias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050816;--bg2:#070b14;--card:rgba(15,23,42,0.75);
+  --cyan:#00e5ff;--purple:#8b5cf6;--green:#22c55e;
+  --amber:#f59e0b;--red:#ef4444;--text:#e5f6ff;--muted:#7090b0;
+  --border:rgba(0,229,255,0.15)
+}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+
+/* Animated BG */
+.bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+.bg-canvas::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 50% at 20% 20%, rgba(139,92,246,0.12) 0%, transparent 60%),
+             radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,229,255,0.08) 0%, transparent 60%),
+             radial-gradient(ellipse 40% 60% at 60% 30%, rgba(34,197,94,0.05) 0%, transparent 50%);
+}
+.grid-overlay{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);
+  background-size:60px 60px;
+  animation:gridShift 20s linear infinite;
+}
+@keyframes gridShift{0%{background-position:0 0}100%{background-position:60px 60px}}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.2rem 3rem;
+  background:rgba(5,8,22,0.85);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+.logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;display:flex;align-items:center;gap:.6rem;
+}
+.logo-icon{
+  width:32px;height:32px;background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;
+}
+.nav-links{display:flex;align-items:center;gap:1rem}
+.btn{
+  padding:.6rem 1.5rem;border-radius:8px;font-family:'DM Sans',sans-serif;
+  font-weight:500;font-size:.9rem;cursor:pointer;text-decoration:none;
+  transition:all .2s ease;display:inline-flex;align-items:center;gap:.5rem;
+}
+.btn-ghost{
+  background:transparent;border:1px solid var(--border);color:var(--text);
+}
+.btn-ghost:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 15px rgba(0,229,255,0.2)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border:none;color:#fff;box-shadow:0 0 20px rgba(0,229,255,0.3);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 30px rgba(0,229,255,0.5)}
+
+/* HERO */
+main{position:relative;z-index:1}
+.hero{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:6rem 2rem 4rem;
+}
+.hero-inner{max-width:900px;animation:fadeUp .8s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+.badge{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.4rem 1rem;border-radius:100px;
+  background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);
+  font-size:.8rem;color:var(--cyan);margin-bottom:2rem;
+  animation:pulseGlow 3s ease-in-out infinite;
+}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 10px rgba(0,229,255,0.2)}50%{box-shadow:0 0 25px rgba(0,229,255,0.4)}}
+
+.hero h1{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(3rem,8vw,6rem);line-height:1.05;
+  margin-bottom:1.5rem;
+}
+.hero h1 span{
+  background:linear-gradient(135deg,var(--cyan) 0%,var(--purple) 50%,var(--green) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero-sub{
+  font-size:1.25rem;color:var(--muted);max-width:600px;margin:0 auto 3rem;
+  line-height:1.6;font-weight:300;
+}
+.hero-cta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.btn-hero{
+  padding:.85rem 2.5rem;border-radius:10px;font-size:1rem;font-weight:600;
+  font-family:'DM Sans',sans-serif;cursor:pointer;text-decoration:none;
+  transition:all .25s ease;display:inline-flex;align-items:center;gap:.6rem;
+}
+.btn-cta-primary{
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border:none;color:#fff;box-shadow:0 0 30px rgba(0,229,255,0.35);
+}
+.btn-cta-primary:hover{transform:translateY(-2px);box-shadow:0 0 50px rgba(0,229,255,0.6)}
+.btn-cta-secondary{
+  background:transparent;border:1px solid rgba(139,92,246,0.5);
+  color:var(--purple);
+}
+.btn-cta-secondary:hover{border-color:var(--purple);background:rgba(139,92,246,0.1);transform:translateY(-2px)}
+
+/* METRICS STRIP */
+.metrics-strip{
+  display:flex;justify-content:center;gap:3rem;flex-wrap:wrap;
+  padding:2rem;margin:2rem auto;border-radius:16px;
+  background:rgba(15,23,42,0.5);border:1px solid var(--border);
+  max-width:700px;backdrop-filter:blur(10px);
+}
+.metric-item{text-align:center}
+.metric-value{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:2rem;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.metric-label{font-size:.8rem;color:var(--muted);margin-top:.3rem}
+
+/* FEATURES */
+.features{padding:5rem 2rem;max-width:1200px;margin:0 auto}
+.section-header{text-align:center;margin-bottom:4rem}
+.section-header h2{
+  font-family:'Syne',sans-serif;font-weight:700;font-size:clamp(2rem,4vw,3rem);
+  margin-bottom:1rem;
+}
+.section-header p{color:var(--muted);font-size:1.05rem;max-width:500px;margin:0 auto}
+
+.features-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem;
+}
+.feature-card{
+  padding:2rem;border-radius:16px;
+  background:var(--card);
+  border:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  transition:all .3s ease;position:relative;overflow:hidden;
+  cursor:pointer;
+}
+.feature-card::before{
+  content:'';position:absolute;inset:0;opacity:0;transition:.3s;
+  background:linear-gradient(135deg,rgba(0,229,255,0.05) 0%,rgba(139,92,246,0.05) 100%);
+}
+.feature-card:hover{transform:translateY(-4px);border-color:rgba(0,229,255,0.3);box-shadow:0 20px 40px rgba(0,0,0,0.4),0 0 30px rgba(0,229,255,0.1)}
+.feature-card:hover::before{opacity:1}
+.feature-icon{
+  width:48px;height:48px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:1.4rem;margin-bottom:1.2rem;
+}
+.feature-card h3{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:.6rem}
+.feature-card p{color:var(--muted);font-size:.9rem;line-height:1.6}
+.feature-tag{
+  display:inline-block;margin-top:1rem;padding:.25rem .75rem;border-radius:100px;
+  font-size:.75rem;font-weight:500;
+}
+
+/* HOW IT WORKS */
+.how-it-works{padding:5rem 2rem;max-width:1000px;margin:0 auto}
+.steps{display:flex;flex-direction:column;gap:0}
+.step{
+  display:flex;align-items:flex-start;gap:2rem;padding:2rem 0;
+  border-bottom:1px solid var(--border);position:relative;
+}
+.step:last-child{border-bottom:none}
+.step-num{
+  flex-shrink:0;width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:#fff;
+  box-shadow:0 0 20px rgba(0,229,255,0.3);
+}
+.step-content h3{font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.4rem}
+.step-content p{color:var(--muted);font-size:.95rem;line-height:1.6}
+
+/* CTA SECTION */
+.cta-section{
+  padding:6rem 2rem;text-align:center;
+}
+.cta-inner{
+  max-width:700px;margin:0 auto;
+  padding:4rem;border-radius:24px;
+  background:linear-gradient(135deg,rgba(0,229,255,0.06) 0%,rgba(139,92,246,0.06) 100%);
+  border:1px solid rgba(0,229,255,0.2);
+  box-shadow:0 0 80px rgba(0,229,255,0.05),0 0 80px rgba(139,92,246,0.05);
+}
+.cta-inner h2{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,3rem);margin-bottom:1rem}
+.cta-inner p{color:var(--muted);margin-bottom:2.5rem;font-size:1.05rem}
+
+/* FOOTER */
+footer{
+  border-top:1px solid var(--border);
+  padding:2rem 3rem;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;
+  color:var(--muted);font-size:.85rem;position:relative;z-index:1;
+}
+footer .logo-sm{
+  font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+</style>
+</head>
+<body>
+<div class="bg-canvas"><div class="grid-overlay"></div></div>
+
+<nav>
+  <div class="logo">
+    <div class="logo-icon">⚖</div>
+    AI Fairness Auditor
+  </div>
+  <div class="nav-links">
+    <a href="/login" class="btn btn-ghost">Sign In</a>
+    <a href="/register" class="btn btn-primary">Get Started →</a>
+  </div>
+</nav>
+
+<main>
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="badge">
+        <span>✦</span> Powered by Groq + Anthropic + Ollama
+      </div>
+      <h1>Audit AI Bias<br><span>Before It Costs You</span></h1>
+      <p class="hero-sub">Detect, simulate, and mitigate bias in AI systems. From raw datasets to deployed models — full-spectrum fairness intelligence.</p>
+      <div class="hero-cta">
+        <a href="/register" class="btn-hero btn-cta-primary">🚀 Start Free Audit</a>
+        <a href="/login" class="btn-hero btn-cta-secondary">Sign In →</a>
+      </div>
+
+      <div class="metrics-strip" style="margin-top:3rem">
+        <div class="metric-item">
+          <div class="metric-value">9</div>
+          <div class="metric-label">Report Sections</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-value">6+</div>
+          <div class="metric-label">Fairness Metrics</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-value">3</div>
+          <div class="metric-label">AI Providers</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-value">100%</div>
+          <div class="metric-label">Local & Private</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="section-header">
+      <h2>Full-Spectrum Fairness Intelligence</h2>
+      <p>Every stage of your AI pipeline, audited and explained.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card" onclick="location.href='/register'">
+        <div class="feature-icon" style="background:linear-gradient(135deg,rgba(0,229,255,0.2),rgba(0,229,255,0.05))">📊</div>
+        <h3>Pre-Training Audit</h3>
+        <p>Analyze raw datasets for imbalance, demographic skew, and bias risks before training begins. Powered by Python metrics + Groq intelligence.</p>
+        <span class="feature-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">Pre-Deployment</span>
+      </div>
+      <div class="feature-card" onclick="location.href='/register'">
+        <div class="feature-icon" style="background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(139,92,246,0.05))">🎯</div>
+        <h3>Post-Training Audit</h3>
+        <p>Audit model predictions for disparate impact, statistical parity violations, and 80% rule compliance across all protected groups.</p>
+        <span class="feature-tag" style="background:rgba(139,92,246,0.1);color:var(--purple)">Post-Deployment</span>
+      </div>
+      <div class="feature-card" onclick="location.href='/register'">
+        <div class="feature-icon" style="background:linear-gradient(135deg,rgba(245,158,11,0.2),rgba(245,158,11,0.05))">⚡</div>
+        <h3>Synthetic Stress Testing</h3>
+        <p>Generate synthetic counterfactual profiles to probe model bias through API endpoints or sandboxed Python code execution.</p>
+        <span class="feature-tag" style="background:rgba(245,158,11,0.1);color:var(--amber)">Black-Box Testing</span>
+      </div>
+      <div class="feature-card" onclick="location.href='/register'">
+        <div class="feature-icon" style="background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.05))">🎛</div>
+        <h3>Bias Optimization</h3>
+        <p>Interactive what-if simulator: adjust thresholds, rebalance distributions, and see fairness improvement in real time without retraining.</p>
+        <span class="feature-tag" style="background:rgba(34,197,94,0.1);color:var(--green)">Simulation</span>
+      </div>
+      <div class="feature-card" onclick="location.href='/register'">
+        <div class="feature-icon" style="background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(239,68,68,0.05))">⚖</div>
+        <h3>Appeal Engine</h3>
+        <p>Context-aware AI analysis of rejections. Upload any resume, form, or document and match it against policies across hiring, loans, insurance, and more.</p>
+        <span class="feature-tag" style="background:rgba(239,68,68,0.1);color:var(--red)">Decision Audit</span>
+      </div>
+      <div class="feature-card" onclick="location.href='/register'">
+        <div class="feature-icon" style="background:linear-gradient(135deg,rgba(0,229,255,0.15),rgba(139,92,246,0.15))">📋</div>
+        <h3>Reports History</h3>
+        <p>Every audit saved and searchable. Filter by mode, risk level, and date. View full styled reports with charts from MongoDB without re-analysis.</p>
+        <span class="feature-tag" style="background:rgba(0,229,255,0.08);color:var(--muted)">Persistent</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="how-it-works">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>From upload to insight in minutes.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Upload Your Data</h3>
+          <p>CSV, JSON, XLSX for structured ML audits. PDF, TXT for unstructured document analysis. Our universal loader auto-detects format and routes appropriately.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Python Computes Metrics</h3>
+          <p>Fairness metrics calculated 100% in Python: bias scores, statistical parity difference, disparate impact, 80% rule compliance. No AI hallucinating your numbers.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Ollama Explains Graphs</h3>
+          <p>Local Llama 3.2 provides natural-language explanations for every chart and visualization. Runs on your hardware, your data stays private.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h3>Groq Generates Full Report</h3>
+          <p>Groq (or Anthropic as fallback) generates a structured 9-section audit report with executive summary, legal implications, recommendations, and a final verdict.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-section">
+    <div class="cta-inner">
+      <h2>Ready to Audit Your AI?</h2>
+      <p>Join developers, data scientists, and compliance teams who use AI Fairness Auditor to ship responsible AI.</p>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+        <a href="/register" class="btn-hero btn-cta-primary">🚀 Create Free Account</a>
+        <a href="/login" class="btn-hero btn-cta-secondary">Sign In →</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="logo-sm">⚖ AI Fairness Auditor</div>
+  <div>Groq · Anthropic · Ollama Llama 3.2 · MongoDB · Flask</div>
+  <div>Built for responsible AI</div>
+</footer>
+</body>
+</html>
